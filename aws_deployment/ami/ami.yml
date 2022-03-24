@@ -1,0 +1,25 @@
+---
+- hosts: all
+  vars: 
+    - DOCKER_REPOSITORY: start2015/fiability-back
+    - tag: latest
+  tasks:
+
+    - name: Uninstall old Docker version if present
+      become: yes
+      apt: 
+        pkg:
+        - docker
+        - docker-engine
+        - docker.io
+        - containerd
+        - runc
+        update_cache: yes 
+        state: absent
+
+    - name: Install Docker engine from official convenience script
+      ansible.builtin.shell: sudo curl -sSL https://get.docker.com/ | sh
+
+    - name: Pull fiability-back latest DockerHub image
+      become: yes
+      ansible.builtin.shell: docker pull {{ DOCKER_REPOSITORY }}:{{ tag }}

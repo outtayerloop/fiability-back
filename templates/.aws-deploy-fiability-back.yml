@@ -1,0 +1,55 @@
+# FIAbility-back application deployment
+
+workflow:
+#A changer
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /deploy test aws/
+
+variables:
+ RUNNER_PUBLIC_IP: "93.22.36.184"
+
+
+#Ansible, Packer installation and AMI build
+build-ami:
+  stage: build_ami
+  before_script:
+    - apt-get -qq update && apt-get -qq install software-properties-common --yes
+    - apt-get install ansible --yes
+    - ansible --version
+    - apt-get install unzip --yes
+    - wget https://releases.hashicorp.com/packer/1.7.8/packer_1.7.8_linux_amd64.zip
+    - unzip packer_1.7.8_linux_amd64.zip
+    - mv packer /usr/local/bin
+    - rm packer_1.7.8_linux_amd64.zip
+    - packer --version
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  script: 
+    - cd ./aws_deployment/ami && packer build -var runner_public_ip=$RUNNER_PUBLIC_IP -var app_port=5000 build-ami.json
+
+
+#Build infrastructure
+build-infra:
+  stage: build_infra
+  before_script:
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  script:
+    - cd ./aws_deployment/infra && terraform init -backend-config='bucket=fiability-back-infra-bucket' -backend-config='key=fiability-back-infra-bucket/infra.tfstate' -backend-config='region=eu-west-1' && terraform apply -auto-approve
+
+
+#Deploy fiability-back application
+deploy-to-aws:
+  stage: deploy
+  before_script:
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  script:
+    - cd ./aws_deployment/app && terraform init -backend-config='bucket=fiability-back-app-bucket' -backend-config='key=fiability-back-app-bucket/app.tfstate' -backend-config='region=eu-west-1' && terraform apply -auto-approve
+

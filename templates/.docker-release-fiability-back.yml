@@ -1,0 +1,28 @@
+#Fiability-back docker image release 
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /deploy test aws/
+    
+services:
+  - docker:dind
+
+release-job:
+  stage: release_image
+  image: docker:latest
+
+  #Login to the dockerHub registry before release
+  before_script:
+  - docker version
+  - docker info
+  - docker logout
+  - docker login -u $DOCKER_USERNAME  -p $DOCKER_PASSWORD 
+
+  #Build docker image then release it 
+  script: 
+    - docker build -t $DOCKER_REPOSITORY:latest .
+    - docker push $DOCKER_REPOSITORY:latest
+
+
+
+

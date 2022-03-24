@@ -1,0 +1,50 @@
+# Name of event which trigger the workflow 
+
+workflow:
+#A changer
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /clean aws/
+    #- if: $CI_JOB_STAGE =="destroy_app" and $CI_JOB_STAGE =="destroy_infra" and $CI_JOB_STAGE =="destroy_ami"
+
+#Destroy application
+destroy-app:
+  stage: destroy_app
+  before_script:
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  script:
+    - cd ./aws_deployment/app && terraform init -backend-config='bucket=fiability-back-app-bucket' -backend-config='key=fiability-back-app-bucket/app.tfstate' -backend-config='region=eu-west-1' && terraform destroy -auto-approve
+
+#Destroy infrastructure
+destroy-infra:
+  stage: destroy_infra
+  before_script:
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  script:
+    - cd ./aws_deployment/infra && terraform init -backend-config='bucket=fiability-back-infra-bucket' -backend-config='key=fiability-back-infra-bucket/infra.tfstate' -backend-config='region=eu-west-1' && terraform destroy -auto-approve
+
+#Destroy fiability back AMI
+destroy-ami:
+  stage: destroy_ami
+  image: "python:3.7"
+  before_script:
+    - python --version
+    - python -m pip install --upgrade pip
+    - pip install aws-amicleaner
+    - export AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION='eu-west-1'
+  script: 
+    - amicleaner --mapping-key name --mapping-values fiability-back-ami --keep-previous -1 --ami-min-days -1 -f
+
+
+
+
+

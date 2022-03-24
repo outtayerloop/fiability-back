@@ -1,0 +1,52 @@
+{
+    "variables": {
+        "region": "eu-west-1",
+        "ssh_username": "ubuntu",
+        "base_ami": "ami-0a8e758f5e873d1c1",
+        "instance_type": "t2.small",
+        "aws_access_key_id": "{{ env `AWS_ACCESS_KEY_ID` }}",
+        "aws_secret_access_key": "{{ env `AWS_SECRET_ACCESS_KEY` }}",
+        "associate_public_ip_address": "true"
+    },
+    "builders": [
+        {
+            "type": "amazon-ebs",
+            "region": "{{user `region`}}",
+            "access_key": "{{ user `AWS_ACCESS_KEY_ID` }}",
+            "secret_key": "{{ user `AWS_SECRET_ACCESS_KEY` }}",
+            "source_ami_filter": {
+                "filters": {
+                    "virtualization-type" : "hvm",
+                    "name" : "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*",
+                    "root-device-type": "ebs"
+                },
+                "owners" : [
+                    "099720109477"
+                ],
+                "most_recent" : true
+            },
+            "instance_type": "{{user `instance_type` }}",
+            "ssh_username": "{{user `ssh_username`}}",
+            "ami_name": "fiability-back-ami-{{isotime \"01022006-150405\"}}",
+            "associate_public_ip_address": "{{user `associate_public_ip_address`}}",
+            "tags": {
+                "Name": "fiability-back-ami",
+                "App_Port": "{{user `app_port`}}"
+            }
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "ansible",
+            "user": "brunelle",
+            "playbook_file": "./ami.yml",
+            "extra_arguments" : ["-e", "app_port={{user `app_port`}}"]
+        },
+        {
+            "type": "shell",
+            "inline": [
+                "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 1; done"
+            ]
+        }
+    ]
+}
